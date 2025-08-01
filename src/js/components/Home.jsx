@@ -15,6 +15,7 @@ const formatDate = (date) => {
 
 const groupTasksByDate = (tasks) => {
   return tasks.reduce((groups, task) => {
+    if (!task.createdAt) return groups; // Skip if missing
     const date = task.createdAt.split("T")[0];
     if (!groups[date]) groups[date] = [];
     groups[date].push(task);
@@ -38,100 +39,123 @@ const isOverdue = (dueDate) => {
 };
 
 const Home = () => {
-  const [tasks, setTasks] = useState(() => {
-    const saved = localStorage.getItem("tasks");
-    return saved ? JSON.parse(saved) : [];
-  });
-
+  const [tasks, setTasks] = useState([]);
   const [input, setInput] = useState("");
   const [dueDate, setDueDate] = useState(null);
 
   useEffect(() => {
-    const dueTasks = tasks.filter(
-      (t) =>
-        t.dueDate &&
-        (isOverdue(t.dueDate) || isDueSoon(t.dueDate)) &&
-        !t.done
-    );
-    if (dueTasks.length > 0) {
-      alert(
-        `Reminder: You have ${dueTasks.length} task(s) due soon or overdue!`
-      );
-    }
+    // Fetch tasks once on mount
+    fetchTasks();
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("tasks", JSON.stringify(tasks));
+    // Alert on due or overdue tasks whenever tasks change
+    const dueTasks = tasks.filter(
+      (t) => t.dueDate && (isOverdue(t.dueDate) || isDueSoon(t.dueDate)) && !t.done
+    );
+    if (dueTasks.length > 0) {
+      alert(`Reminder: You have ${dueTasks.length} task(s) due soon or overdue!`);
+    }
   }, [tasks]);
+
+  const fetchTasks = async () => {
+    try {
+      const res = await fetch("https://playground.4geeks.com/todo/todos/kelvinL");
+      if (!res.ok) throw new Error("Failed to fetch tasks");
+      const data = await res.json();
+      const tasksArray = Array.isArray(data) ? data : data.results || [];
+      const tasksWithText = tasksArray.map((t) => ({ ...t, text: t.label }));
+      setTasks(tasksWithText);
+    } catch (err) {
+      console.error("Fetch error:", err);
+    }
+  };
+
+  const addTask = async (task) => {
+    try {
+      const res = await fetch("https://playground.4geeks.com/todo/todos/kelvinL", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          label: task.label,
+          done: task.done,
+          dueDate: task.dueDate || null,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to add task");
+      const newTaskFromAPI = await res.json();
+      setTasks((prev) => [...prev, { ...newTaskFromAPI, text: newTaskFromAPI.label }]);
+    } catch (err) {
+      console.error("Add task error:", err);
+    }
+  };
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && input.trim() !== "") {
       const newTask = {
-        label: input.trim(),  // Note: changed from `text` to `label` for API compatibility
+        label: input.trim(),
         done: false,
-        createdAt: new Date().toISOString(),
+        text: input.trim(),
         dueDate: dueDate ? dueDate.toISOString() : null,
       };
-
-      // Update local state immediately
-      setTasks([...tasks, { ...newTask, text: newTask.label }]); // keep text for UI consistency
-
-      // Clear input and date picker
+      addTask(newTask);
       setInput("");
       setDueDate(null);
-
-      // Send task to API
-      fetch('https://playground.4geeks.com/todo/todos/kelvinL', {
-        method: "POST",
-        body: JSON.stringify(newTask),
-        headers: {
-          "Content-Type": "application/json"
-        }
-      })
-      .then(resp => {
-        console.log("Response OK?", resp.ok);
-        console.log("Status code:", resp.status);
-        return resp.json();
-      })
-      .then(data => {
-        console.log("Server response:", data);
-      })
-      .catch(error => {
-        console.error("Fetch error:", error);
-      });
     }
   };
 
-  // ... rest of your component unchanged
+  const toggleDone = async (index) => {
+    const updatedTask = { ...tasks[index], done: !tasks[index].done };
 
-  // The rest of the code including toggleDone, deleteTask, rendering, etc.
+    try {
+      // FIX: Correct the URL from /user/todo/... to /todo/todos/...
+      const res = await fetch(
+        `https://playground.4geeks.com/todo/todos/kelvinL/${updatedTask.id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            label: updatedTask.label,
+            done: updatedTask.done,
+            dueDate: updatedTask.dueDate || null,
+          }),
+        }
+      );
+      if (!res.ok) throw new Error("Failed to update task");
 
-  // Note: For consistency, in UI you use `task.text` but API expects `label` on POST.
-
-  // To keep this simple, when adding locally, we add `text` for UI and send `label` to API.
-
-  // This way you don’t break your UI but also respect API expectations.
-
-  const toggleDone = (index) => {
-    const newTasks = [...tasks];
-    newTasks[index].done = !newTasks[index].done;
-    setTasks(newTasks);
+      const newTasks = [...tasks];
+      newTasks[index] = { ...updatedTask, text: updatedTask.label };
+      setTasks(newTasks);
+    } catch (err) {
+      console.error("Update error:", err);
+    }
   };
 
-  const deleteTask = (indexToDelete) => {
-    setTasks(tasks.filter((_, index) => index !== indexToDelete));
+  const deleteTask = async (indexToDelete) => {
+    const taskToDelete = tasks[indexToDelete];
+
+    try {
+      // FIX: Correct URL here as well
+      const res = await fetch(
+        `https://playground.4geeks.com/todo/todos/kelvinL/${taskToDelete.id}`,
+        {
+          method: "DELETE",
+        }
+      );
+      if (!res.ok) throw new Error("Failed to delete task");
+
+      setTasks(tasks.filter((_, index) => index !== indexToDelete));
+    } catch (err) {
+      console.error("Delete error:", err);
+    }
   };
 
   const groupedTasks = groupTasksByDate(tasks);
-  const sortedDates = Object.keys(groupedTasks).sort((a, b) =>
-    a < b ? 1 : -1
-  );
+  const sortedDates = Object.keys(groupedTasks).sort((a, b) => (a < b ? 1 : -1));
 
   return (
     <div className="container mt-5">
-      <h1 className="text-center fw-bold mb-4">
-        To-Do List with Due Dates & Reminders
-      </h1>
+      <h1 className="text-center fw-bold mb-4">To-Do List with Due Dates & Reminders</h1>
 
       <div className="d-flex gap-2 mb-4">
         <input
@@ -167,7 +191,7 @@ const Home = () => {
               })}
             </div>
             <ul className="list-group list-group-flush">
-              {groupedTasks[date].map((task, index) => {
+              {groupedTasks[date].map((task, idx) => {
                 const taskIndex = tasks.findIndex((t) => t === task);
                 const dueSoon = isDueSoon(task.dueDate);
                 const overdue = isOverdue(task.dueDate);
@@ -179,11 +203,7 @@ const Home = () => {
                       ${dueSoon && !task.done ? "border border-warning" : ""}
                       ${overdue && !task.done ? "border border-danger" : ""}
                     `}
-                    title={
-                      task.dueDate
-                        ? `Due: ${formatDate(task.dueDate)}`
-                        : undefined
-                    }
+                    title={task.dueDate ? `Due: ${formatDate(task.dueDate)}` : undefined}
                   >
                     <div className="d-flex align-items-center" style={{ flex: 1 }}>
                       <input
