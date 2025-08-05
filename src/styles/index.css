@@ -17,7 +17,7 @@ body {
 /* Header */
 h1.text-center {
   font-weight: 800;
-  font-size: 2.4rem;
+  font-size: 2rem;
   margin-bottom: 1.5rem;
   color: #2c3e50;
   user-select: none;
@@ -29,7 +29,7 @@ input.form-control,
   border-radius: 0.6rem;
   border: 1.5px solid #2980b9;
   box-shadow: 0 2px 6px rgb(41 128 185 / 0.2);
-  font-size: 1.1rem;
+  font-size: 1rem;
   padding: 0.5rem 1rem;
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
@@ -61,7 +61,7 @@ input.form-control:focus,
 /* Card Header */
 .card-header {
   font-weight: 700;
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   color: white !important;
   background-color: #2980b9 !important;
   border-radius: 1rem 1rem 0 0 !important;
@@ -99,7 +99,7 @@ input.form-control:focus,
 
 /* Task text */
 .task-item label {
-  font-size: 1.1rem;
+  font-size: 1rem;
   color: #2c3e50;
   user-select: none;
   flex: 1;
@@ -134,7 +134,7 @@ input.form-control:focus,
 
 /* Badges */
 .badge {
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   min-width: 95px;
   text-align: center;
   padding: 0.3rem 0.6rem;
@@ -165,7 +165,7 @@ input.form-control:focus,
   }
 
   h1.text-center {
-    font-size: 1.8rem;
+    font-size: 1.6rem;
   }
 
   .d-flex.gap-2 {
@@ -175,5 +175,19 @@ input.form-control:focus,
   .d-flex.gap-2 > input,
   .d-flex.gap-2 > .react-datepicker-wrapper {
     width: 100% !important;
+  }
+
+  input.form-control,
+  .react-datepicker__input-container input,
+  .task-item label {
+    font-size: 0.95rem;
+  }
+
+  .card-header {
+    font-size: 1rem;
+  }
+
+  .badge {
+    font-size: 0.75rem;
   }
 }
